@@ -1,0 +1,8 @@
+[project]
+name = "aws-precheck"
+version = "0.1.0"
+description = "AWS account precheck script for Terraform"
+requires-python = ">=3.8"
+dependencies = [
+    "boto3>=1.29.0"
+]
