@@ -1,0 +1,50 @@
+{
+  "name": "kayak-travel-booking-system",
+  "version": "1.0.0",
+  "description": "Distributed 3-tier travel booking system with microservices architecture",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend/api-gateway",
+    "backend/services/*",
+    "backend/shared"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "start:all": "powershell -ExecutionPolicy Bypass -File ./start-all.ps1",
+    "start:frontend": "npm run start --workspace=frontend",
+    "start:gateway": "npm run start --workspace=backend/api-gateway",
+    "start:user": "npm run start --workspace=backend/services/user-service",
+    "start:flight": "npm run start --workspace=backend/services/flight-service",
+    "start:hotel": "npm run start --workspace=backend/services/hotel-service",
+    "start:car": "npm run start --workspace=backend/services/car-service",
+    "start:billing": "npm run start --workspace=backend/services/billing-service",
+    "start:admin": "npm run start --workspace=backend/services/admin-service",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "dev:gateway": "npm run dev --workspace=backend/api-gateway",
+    "dev:user": "npm run dev --workspace=backend/services/user-service",
+    "dev:flight": "npm run dev --workspace=backend/services/flight-service",
+    "dev:hotel": "npm run dev --workspace=backend/services/hotel-service",
+    "dev:car": "npm run dev --workspace=backend/services/car-service",
+    "dev:billing": "npm run dev --workspace=backend/services/billing-service",
+    "dev:admin": "npm run dev --workspace=backend/services/admin-service",
+    "seed:database": "node database/seeds/generate-data.js",
+    "seed:minimal": "node database/seeds/seed-minimal.js",
+    "create:admin": "node database/seeds/create-admin.js"
+  },
+  "keywords": [
+    "travel",
+    "booking",
+    "microservices",
+    "kafka",
+    "mongodb",
+    "react",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

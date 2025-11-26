@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import 'react-datepicker/dist/react-datepicker.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+  
+  body {
+    @apply font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-kayak-blue hover:bg-kayak-blue-dark text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5;
+  }
+  
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-100 text-kayak-blue font-semibold py-3 px-6 rounded-lg transition-all duration-300 border-2 border-kayak-blue;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-kayak-blue transition-all duration-300;
+  }
+  
+  /* DatePicker Custom Styles */
+  .react-datepicker-wrapper {
+    @apply w-full;
+  }
+  
+  .react-datepicker {
+    @apply border-2 border-gray-200 rounded-lg shadow-xl;
+  }
+  
+  .react-datepicker__header {
+    @apply bg-kayak-blue border-b-2 border-kayak-blue;
+  }
+  
+  .react-datepicker__current-month {
+    @apply text-white font-semibold;
+  }
+  
+  .react-datepicker__day-name {
+    @apply text-white;
+  }
+  
+  .react-datepicker__day--selected {
+    @apply bg-kayak-blue text-white;
+  }
+  
+  .react-datepicker__day--keyboard-selected {
+    @apply bg-kayak-blue-light text-kayak-blue;
+  }
+  
+  .react-datepicker__day:hover {
+    @apply bg-kayak-blue-light;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0064E5;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0052B8;
+}
+
