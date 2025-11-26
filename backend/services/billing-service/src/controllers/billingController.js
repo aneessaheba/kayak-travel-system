@@ -2,18 +2,18 @@ const BillingModel = require('../models/billingModel');
 const { generateBillingId } = require('../utils/idGenerator');
 const { publishEvent } = require('../config/kafka');
 
+// Mock payment gateway
+async function mockPaymentGateway(amount, method) {
+  await new Promise(resolve => setTimeout(resolve, 100));
+  return Math.random() > 0.05; // 95% success rate
+}
+
 class BillingController {
   
   // Process payment and create billing record
   static async processPayment(req, res) {
     try {
-      const {
-        user_id,
-        booking_type,
-        booking_id,
-        total_amount,
-        payment_method
-      } = req.body;
+      const { user_id, booking_type, booking_id, total_amount, payment_method } = req.body;
 
       // Validate required fields
       if (!user_id || !booking_type || !booking_id || !total_amount || !payment_method) {
@@ -41,12 +41,21 @@ class BillingController {
         });
       }
 
+      // Check for duplicate billing
+      const existingBilling = await BillingModel.getBillingByBookingId(booking_id);
+      if (existingBilling) {
+        return res.status(409).json({
+          success: false,
+          message: 'Billing already exists for this booking',
+          data: { billing_id: existingBilling.billing_id }
+        });
+      }
+
       // Generate billing ID
       const billing_id = generateBillingId();
 
-      // TODO: Process actual payment here (Stripe/PayPal)
-      // For now, mock payment success
-      const paymentSuccess = true;
+      // Process payment
+      const paymentSuccess = await mockPaymentGateway(total_amount, payment_method);
 
       const billingData = {
         billing_id,
@@ -68,6 +77,7 @@ class BillingController {
         user_id,
         amount: total_amount,
         status: billingData.transaction_status,
+        booking_type,
         timestamp: new Date().toISOString()
       });
 
@@ -95,7 +105,6 @@ class BillingController {
   static async getBillingById(req, res) {
     try {
       const { billingId } = req.params;
-
       const billing = await BillingModel.getBillingById(billingId);
 
       if (!billing) {
@@ -124,7 +133,6 @@ class BillingController {
   static async getUserBillings(req, res) {
     try {
       const { userId } = req.params;
-
       const billings = await BillingModel.getBillingsByUserId(userId);
 
       res.status(200).json({
@@ -147,7 +155,6 @@ class BillingController {
   static async getBillingByBookingId(req, res) {
     try {
       const { bookingId } = req.params;
-
       const billing = await BillingModel.getBillingByBookingId(bookingId);
 
       if (!billing) {
@@ -176,8 +183,6 @@ class BillingController {
   static async downloadInvoice(req, res) {
     try {
       const { billingId } = req.params;
-
-      // Get billing with user details
       const billing = await BillingModel.getBillingWithUserDetails(billingId);
 
       if (!billing) {
@@ -187,8 +192,7 @@ class BillingController {
         });
       }
 
-      // TODO: Generate PDF invoice
-      // For now, return message
+      // TODO: Generate PDF invoice (next step)
       res.status(200).json({
         success: true,
         message: 'Invoice generation coming soon',
@@ -211,7 +215,6 @@ class BillingController {
       const { billingId } = req.params;
       const { status } = req.body;
 
-      // Validate status
       const validStatuses = ['pending', 'completed', 'failed', 'refunded'];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
@@ -220,7 +223,6 @@ class BillingController {
         });
       }
 
-      // Check if billing exists
       const exists = await BillingModel.billingExists(billingId);
       if (!exists) {
         return res.status(404).json({
@@ -229,7 +231,6 @@ class BillingController {
         });
       }
 
-      // Update status
       await BillingModel.updateBillingStatus(billingId, status);
 
       res.status(200).json({
@@ -280,7 +281,6 @@ class BillingController {
   static async getUserStats(req, res) {
     try {
       const { userId } = req.params;
-
       const stats = await BillingModel.getUserTotalSpending(userId);
 
       res.status(200).json({

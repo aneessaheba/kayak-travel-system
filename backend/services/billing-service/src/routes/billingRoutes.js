@@ -5,25 +5,23 @@ const billingController = require('../controllers/billingController');
 // Process payment (create billing record)
 router.post('/process-payment', billingController.processPayment);
 
-// Get billing by ID
-router.get('/:billingId', billingController.getBillingById);
+// Statistics routes (most specific first)
+router.get('/stats/revenue', billingController.getRevenueStats);
+router.get('/stats/user/:userId', billingController.getUserStats);
 
-// Get all billings for a user
+// User billings
 router.get('/user/:userId', billingController.getUserBillings);
 
-// Get billing by booking ID
+// Booking billings
 router.get('/booking/:bookingId', billingController.getBillingByBookingId);
 
-// Download invoice PDF
+// Invoice download
 router.get('/:billingId/invoice', billingController.downloadInvoice);
 
-// Update billing status (admin only)
+// Update status
 router.put('/:billingId/status', billingController.updateBillingStatus);
 
-// Get billing statistics (admin)
-router.get('/stats/revenue', billingController.getRevenueStats);
-
-// Get user's total spending
-router.get('/stats/user/:userId', billingController.getUserStats);
+// Get single billing (LAST - most generic)
+router.get('/:billingId', billingController.getBillingById);
 
 module.exports = router;
