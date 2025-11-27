@@ -1,42 +1,45 @@
 const express = require('express');
 const router = express.Router();
-const userController = require('../controllers/userController');
-const { authenticate } = require('../middleware/auth');
-const { validateRegister, validateLogin } = require('../middleware/validation');
+const UserController = require('../controllers/userController');
 
-// Public routes - specific routes must come before parameterized routes
-router.post('/register', validateRegister, userController.register);
-router.post('/login', validateLogin, userController.login);
-router.get('/email/:email', userController.getUserByEmail);
-// Admin route to get all users (should be protected in production)
-router.get('/', userController.getAllUsers);
+/**
+ * User Routes
+ * Base path: /api/users
+ */
 
-// Protected routes - specific routes with /:id must come before generic /:id route
-// Booking history routes
-router.post('/:id/bookings', authenticate, userController.addBooking);
-router.get('/:id/bookings', authenticate, userController.getBookingHistory);
-router.put('/:id/bookings/cancel', authenticate, userController.cancelBooking);
+// Create new user
+// POST /api/users
+// Body: { user_id, first_name, last_name, email, password, address, city, state, zip_code, phone_number, profile_image }
+router.post('/', UserController.createUser);
 
-// Review routes
-router.post('/:id/reviews', authenticate, userController.addReview);
-router.get('/:id/reviews', authenticate, userController.getReviews);
+// Login user
+// POST /api/users/login
+// Body: { email, password }
+router.post('/login', UserController.loginUser);
 
-// Favourites routes
-router.post('/:id/favourites', authenticate, userController.addFavourite);
-router.delete('/:id/favourites', authenticate, userController.removeFavourite);
-router.get('/:id/favourites', authenticate, userController.getFavourites);
+// Get all users (with pagination)
+// GET /api/users?limit=100&offset=0
+router.get('/', UserController.getAllUsers);
 
-// Notifications routes - must come before /:id route
-router.get('/:id/notifications', authenticate, userController.getNotifications);
-router.post('/:id/notifications', authenticate, userController.createNotification);
-router.put('/:id/notifications/read', authenticate, userController.markNotificationAsRead);
-router.put('/:id/notifications/read-all', authenticate, userController.markAllNotificationsAsRead);
-router.delete('/:id/notifications', authenticate, userController.deleteNotification);
+// Get user statistics
+// GET /api/users/stats
+router.get('/stats', UserController.getUserStats);
 
-// Generic user routes - must come last
-router.get('/:id', authenticate, userController.getUserById);
-router.put('/:id', authenticate, userController.updateUser);
-router.delete('/:id', authenticate, userController.deleteUser);
+// Get user by email
+// GET /api/users/email/:email
+router.get('/email/:email', UserController.getUserByEmail);
+
+// Get user by ID
+// GET /api/users/:user_id
+router.get('/:user_id', UserController.getUserById);
+
+// Update user
+// PUT /api/users/:user_id
+// Body: { first_name?, last_name?, email?, password?, address?, city?, state?, zip_code?, phone_number?, profile_image? }
+router.put('/:user_id', UserController.updateUser);
+
+// Delete user
+// DELETE /api/users/:user_id
+router.delete('/:user_id', UserController.deleteUser);
 
 module.exports = router;
-
