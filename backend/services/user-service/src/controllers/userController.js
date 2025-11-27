@@ -316,6 +316,55 @@ const UserController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  /**
+   * Upload profile image
+   * POST /api/users/:user_id/upload-image
+   * Body: multipart/form-data with 'image' field
+   */
+  async uploadProfileImage(req, res, next) {
+    try {
+      const { user_id } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          error: 'validation_error',
+          message: 'No image file provided'
+        });
+      }
+
+      // Validate user exists
+      const user = await UserModel.getUserById(user_id);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: 'user_not_found',
+          message: 'User not found'
+        });
+      }
+
+      // Generate image URL (relative path)
+      const imageUrl = `/uploads/users/${req.file.filename}`;
+
+      // Update user's profile_image in database
+      const updatedUser = await UserModel.updateUser(user_id, {
+        profile_image: imageUrl
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile image uploaded successfully',
+        data: {
+          image_url: imageUrl,
+          user: updatedUser
+        }
+      });
+
+    } catch (error) {
+      next(error);
+    }
   }
 };
 
