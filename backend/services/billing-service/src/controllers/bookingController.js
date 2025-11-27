@@ -12,6 +12,7 @@ class BookingController {
         booking_type,
         listing_id,
         travel_date,
+        return_date,       
         quantity = 1,
         total_amount,
         special_requests
@@ -43,6 +44,7 @@ class BookingController {
         booking_type,
         listing_id,
         travel_date,
+        return_date,      
         quantity,
         total_amount,
         status: 'pending',
@@ -58,8 +60,10 @@ class BookingController {
         user_id,
         booking_type,
         listing_id,
-        total_amount,
         travel_date,
+        return_date,      
+        quantity,         
+        total_amount,
         timestamp: new Date().toISOString()
       });
 

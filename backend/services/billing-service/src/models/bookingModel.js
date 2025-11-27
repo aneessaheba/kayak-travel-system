@@ -10,6 +10,7 @@ class BookingModel {
       booking_type,
       listing_id,
       travel_date,
+      return_date = null,    // ← ADD THIS
       quantity,
       total_amount,
       status = 'pending',
@@ -19,8 +20,8 @@ class BookingModel {
     const query = `
       INSERT INTO bookings (
         booking_id, user_id, booking_type, listing_id,
-        travel_date, quantity, total_amount, status, special_requests
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        travel_date, return_date, quantity, total_amount, status, special_requests
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await db.execute(query, [
@@ -29,6 +30,7 @@ class BookingModel {
       booking_type,
       listing_id,
       travel_date,
+      return_date,     
       quantity,
       total_amount,
       status,
