@@ -11,7 +11,14 @@ function generateSequentialBillingId(count) {
   return `BIL-${date}-${sequence}`;
 }
 
+function generateBookingId() {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000);
+  return `BK-${timestamp}-${random}`;
+}
+
 module.exports = {
   generateBillingId,
-  generateSequentialBillingId
+  generateSequentialBillingId,
+  generateBookingId
 };
