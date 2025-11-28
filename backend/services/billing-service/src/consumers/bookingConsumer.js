@@ -68,6 +68,10 @@ async function handleBookingCreated(event) {
       booking_id,
       user_id,
       booking_type,
+      listing_id,       
+      travel_date,       
+      return_date,     
+      quantity,          
       total_amount,
       payment_method = 'credit_card'
     } = event;
@@ -118,9 +122,13 @@ async function handleBookingCreated(event) {
       billing_id,
       booking_id,
       user_id,
+      booking_type,
+      listing_id,                      
+      travel_date,                    
+      return_date: return_date || null, 
+      quantity,                        
       amount: total_amount,
       status: billingData.transaction_status,
-      booking_type,
       timestamp: new Date().toISOString()
     });
 
