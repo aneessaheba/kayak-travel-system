@@ -1,12 +1,48 @@
 const { Kafka } = require('kafkajs');
+const fs = require('fs');
 require('dotenv').config();
 
-const kafka = new Kafka({
-  clientId: 'billing-service',
-  brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],  // Add fallback
-  connectionTimeout: 10000,
-  requestTimeout: 30000
-});
+const buildKafkaConfig = () => {
+  const broker = process.env.KAFKA_BROKER || 'localhost:9092';
+  const sslEnabled =
+    process.env.KAFKA_SSL_CA_PATH ||
+    process.env.KAFKA_SSL_CERT_PATH ||
+    process.env.KAFKA_SSL_KEY_PATH;
+
+  const ssl = sslEnabled
+    ? {
+        rejectUnauthorized: true,
+        ca: process.env.KAFKA_SSL_CA_PATH
+          ? [fs.readFileSync(process.env.KAFKA_SSL_CA_PATH, 'utf-8')]
+          : undefined,
+        cert: process.env.KAFKA_SSL_CERT_PATH
+          ? fs.readFileSync(process.env.KAFKA_SSL_CERT_PATH, 'utf-8')
+          : undefined,
+        key: process.env.KAFKA_SSL_KEY_PATH
+          ? fs.readFileSync(process.env.KAFKA_SSL_KEY_PATH, 'utf-8')
+          : undefined,
+      }
+    : undefined;
+
+  const sasl = process.env.KAFKA_SASL_USERNAME
+    ? {
+        mechanism: process.env.KAFKA_SASL_MECHANISM || 'plain',
+        username: process.env.KAFKA_SASL_USERNAME,
+        password: process.env.KAFKA_SASL_PASSWORD || '',
+      }
+    : undefined;
+
+  return {
+    clientId: 'billing-service',
+    brokers: [broker],
+    connectionTimeout: 10000,
+    requestTimeout: 30000,
+    ssl,
+    sasl,
+  };
+};
+
+const kafka = new Kafka(buildKafkaConfig());
 
 const producer = kafka.producer();
 let isProducerConnected = false;
@@ -60,5 +96,6 @@ const disconnectProducer = async () => {
 module.exports = {
   connectProducer,
   publishEvent,
-  disconnectProducer
+  disconnectProducer,
+  buildKafkaConfig
 };

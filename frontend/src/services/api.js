@@ -209,5 +209,13 @@ export const adminAPI = {
   deleteAdmin: (id) => adminApi.delete(`/admin/admins/${id}`),
 };
 
-export default api;
+// AI Agent (via gateway by default)
+const agentApi = axios.create({
+  baseURL: import.meta.env.VITE_AGENT_URL || '/api/agent',
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
+});
 
+export const sendChatMessage = (payload) => agentApi.post('/chat', payload);
+
+export default api;

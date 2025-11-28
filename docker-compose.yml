@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: kayak-backend
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb+srv://aneessahebaguddi:Saheba2001@datawarehouse.egbi7gm.mongodb.net/?retryWrites=true&w=majority
+      REDIS_URL: redis://default:ok4NyM9aDKkxicOtDblKR9lJEMK0HfVB@redis-10259.c323.us-east-1-2.ec2.cloud.redislabs.com:10259
+      KAFKA_BROKER: kafka-22d33350-data-236-b354.h.aivencloud.com:21798
+      KAFKA_SSL_CA_PATH: /app/kafka-creds/ca.pem
+      KAFKA_SSL_CERT_PATH: /app/kafka-creds/service.cert
+      KAFKA_SSL_KEY_PATH: /app/kafka-creds/service.key
+      AGENT_SERVICE_URL: http://ai-agent:8000
+      JWT_SECRET: change-me
+    volumes:
+      - ./kafka/creds:/app/kafka-creds:ro
+    depends_on:
+      - ai-agent
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: kayak-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+  ai-agent:
+    build:
+      context: .
+      dockerfile: ai-agent/Dockerfile
+    container_name: kayak-ai-agent
+    ports:
+      - "8000:8000"

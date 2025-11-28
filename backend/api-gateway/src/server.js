@@ -24,6 +24,7 @@ const services = {
   car: process.env.CAR_SERVICE_URL || 'http://localhost:5004',
   billing: process.env.BILLING_SERVICE_URL || 'http://localhost:5005',
   admin: process.env.ADMIN_SERVICE_URL || 'http://localhost:5006',
+  agent: process.env.AGENT_SERVICE_URL || 'http://localhost:8000',
 };
 
 // Proxy routes - forward requests to respective microservices
@@ -91,6 +92,23 @@ app.use('/api/admin', createProxyMiddleware({
   }
 }));
 
+// AI Agent proxy (HTTP + WS)
+app.use('/api/agent', createProxyMiddleware({
+  target: services.agent,
+  changeOrigin: true,
+  ws: true,
+  pathRewrite: {
+    '^/api/agent': '',
+  },
+  logLevel: 'warn',
+  onError: (err, req, res) => {
+    console.error(`[API Gateway] Error proxying to AI agent:`, err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'AI agent unavailable' });
+    }
+  }
+}));
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'api-gateway' });
@@ -127,4 +145,3 @@ app.listen(PORT, () => {
   console.log(`   - Billing Service: ${services.billing}`);
   console.log(`   - Admin Service: ${services.admin}`);
 });
-

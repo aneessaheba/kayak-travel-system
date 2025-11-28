@@ -82,4 +82,9 @@ kafka/logs/
 secrets/
 *.pem
 *.key
-
+*.crt
+kafka/creds/
+backend/.env
+ai-agent/.env
+*.tfvars
+terraform/**/*.tfstate*

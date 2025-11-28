@@ -1,12 +1,9 @@
 const { Kafka } = require('kafkajs');
 const BillingModel = require('../models/billingModel');
 const { generateBillingId } = require('../utils/idGenerator');
-const { publishEvent } = require('../config/kafka');
+const { publishEvent, buildKafkaConfig } = require('../config/kafka');
 
-const kafka = new Kafka({
-  clientId: 'billing-service',
-  brokers: [process.env.KAFKA_BROKER || 'localhost:9092']
-});
+const kafka = new Kafka(buildKafkaConfig());
 
 const consumer = kafka.consumer({ 
   groupId: 'billing-service-group' 

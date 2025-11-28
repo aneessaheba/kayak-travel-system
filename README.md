@@ -1,4 +1,4 @@
-# 🛫 Kayak Travel Booking System
+#  Kayak Travel Booking System
 
 A distributed 3-tier travel booking system similar to Kayak, supporting flights, hotels, and car rentals with AI-powered recommendations.
 
@@ -6,7 +6,7 @@ A distributed 3-tier travel booking system similar to Kayak, supporting flights,
 [![MongoDB](https://img.shields.io/badge/MongoDB-6.0+-green.svg)](https://www.mongodb.com/)
 [![React](https://img.shields.io/badge/React-18+-blue.svg)](https://reactjs.org/)
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Features](#-features)
 - [Prerequisites](#-prerequisites)
@@ -18,25 +18,25 @@ A distributed 3-tier travel booking system similar to Kayak, supporting flights,
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
 
-## ✨ Features
+## Features
 
 ### User Features
-- 🔐 User registration and authentication
-- 🔍 Search flights, hotels, and cars
-- 🎯 Advanced filtering (price, dates, location, ratings)
-- 📅 Book reservations
-- 💳 Payment processing
-- 📊 View booking history
+- User registration and authentication
+- Search flights, hotels, and cars
+-  Advanced filtering (price, dates, location, ratings)
+-  Book reservations
+-  Payment processing
+-  View booking history
 - ⭐ Submit reviews
 
 ### Admin Features
-- 📊 Analytics dashboard with charts
-- 🏨 Manage hotels, flights, and cars (CRUD)
-- 👥 User account management
-- 💰 Revenue tracking and reports
-- 📈 Top properties, city-wise revenue analytics
+-  Analytics dashboard with charts
+-  Manage hotels, flights, and cars (CRUD)
+-  User account management
+-  Revenue tracking and reports
+-  Top properties, city-wise revenue analytics
 
-## 📦 Prerequisites
+##  Prerequisites
 
 Before you begin, ensure you have the following installed:
 
@@ -53,7 +53,7 @@ npm --version     # Should be v9.0.0 or higher
 mongod --version  # Should show MongoDB version
 ```
 
-## 🚀 Quick Start (3 Steps)
+##  Quick Start (3 Steps)
 
 ### Step 1: Clone the Repository
 
@@ -114,7 +114,7 @@ chmod +x start-all.sh
    - Frontend: http://localhost:5173
    - Admin Login: http://localhost:5173/admin/login
 
-## 📖 Detailed Setup
+##  Detailed Setup
 
 ### 1. MongoDB Setup
 
@@ -189,7 +189,7 @@ curl http://localhost:5006/health  # Admin Service
 
 Each should return: `{"status":"ok","service":"..."}`
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 kayak-distributed-travel-system/
@@ -222,7 +222,7 @@ kayak-distributed-travel-system/
 └── README.md
 ```
 
-## 🔧 Technology Stack
+##  Technology Stack
 
 ### Frontend
 - **React** 18+ - UI framework
@@ -245,7 +245,7 @@ kayak-distributed-travel-system/
 - **Redis** - Caching (planned)
 - **Kafka** - Messaging (planned)
 
-## 🌐 Service Ports
+##  Service Ports
 
 | Service | Port | URL |
 |---------|------|-----|
@@ -259,7 +259,7 @@ kayak-distributed-travel-system/
 | API Gateway | 5000 | http://localhost:5000 |
 | MongoDB | 27020 | mongodb://localhost:27020 |
 
-## 🔌 API Endpoints
+##  API Endpoints
 
 ### User Service (Port 5001)
 - `POST /api/users/register` - Register new user
@@ -298,7 +298,7 @@ kayak-distributed-travel-system/
 - `POST /api/admin/login` - Admin login
 - `GET /api/admin/analytics` - Get analytics data
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### MongoDB Won't Start
 
@@ -358,13 +358,13 @@ npm install
 3. Verify all backend services are running
 4. Check `frontend/src/services/api.js` for correct API URLs
 
-## 📚 Additional Documentation
+##  Additional Documentation
 
 - [Startup Guide](./STARTUP_GUIDE.md) - Detailed startup instructions
 - [Project Status](./PROJECT_STATUS.md) - Implementation status
 - [Project Plan](./PROJECT_PLAN.md) - Project architecture and plan
 
-## 👥 Default Credentials
+##  Default Credentials
 
 After running `npm run create:admin`, you can login with:
 
@@ -374,7 +374,7 @@ After running `npm run create:admin`, you can login with:
 
 **Note:** Change default passwords in production!
 
-## 🚦 Development Commands
+##  Development Commands
 
 ```bash
 # Install dependencies
@@ -396,6 +396,9 @@ npm run dev:frontend
 npm run seed:minimal      # Seed minimal data
 npm run seed:database     # Seed full database
 npm run create:admin     # Create admin user
+cd backend && npm run seed:mongo  # Ensure Mongo DBs/collections/indexes (uses env)
+cd backend && npm run seed:redis  # Ping/prime Redis (uses env)
+cd backend && npm run kafka:topics  # Create Kafka topics (uses env)
 
 # Development mode (with auto-reload)
 npm run dev:user
@@ -403,7 +406,7 @@ npm run dev:flight
 # etc.
 ```
 
-## 🤝 Contributing
+##  Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
@@ -411,15 +414,15 @@ npm run dev:flight
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+##  License
 
 ISC
 
-## 👨‍💻 Authors
+## ‍ Authors
 
 - Your Name - [GitHub](https://github.com/yourusername)
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - Inspired by Kayak.com
 - Built for Distributed Systems course project

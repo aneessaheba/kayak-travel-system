@@ -1,14 +1,37 @@
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
+[
+  path.resolve(__dirname, '../../backend/.env'),
+  path.resolve(__dirname, '../../.env')
+].forEach((p) => {
+  if (fs.existsSync(p)) dotenv.config({ path: p });
+});
 const User = require('../../backend/services/user-service/src/models/User');
 const Flight = require('../../backend/services/flight-service/src/models/Flight');
 const Hotel = require('../../backend/services/hotel-service/src/models/Hotel');
 const Car = require('../../backend/services/car-service/src/models/Car');
 
-// Connect to separate databases for each service
-const USER_DB_URI = process.env.USER_DB_URI || 'mongodb://localhost:27020/kayak_users';
-const FLIGHT_DB_URI = process.env.FLIGHT_DB_URI || 'mongodb://localhost:27020/kayak_flights';
-const HOTEL_DB_URI = process.env.HOTEL_DB_URI || 'mongodb://localhost:27020/kayak_hotels';
-const CAR_DB_URI = process.env.CAR_DB_URI || 'mongodb://localhost:27020/kayak_cars';
+// Generic connection resolver so it works locally or with a shared cluster URI.
+const BASE_DB_URI = process.env.MONGODB_URI;
+const DEFAULT_LOCAL_HOST = 'mongodb://localhost:27020';
+const defaultOptions = { useNewUrlParser: true, useUnifiedTopology: true };
+const resolveDbConfig = (dbName, envKey, localPath) => {
+  const serviceUri = process.env[envKey];
+  if (serviceUri) {
+    return { uri: serviceUri, options: defaultOptions };
+  }
+  if (BASE_DB_URI) {
+    return { uri: BASE_DB_URI, options: { ...defaultOptions, dbName } };
+  }
+  return { uri: `${DEFAULT_LOCAL_HOST}/${localPath}`, options: defaultOptions };
+};
+
+const userDb = resolveDbConfig('kayak_users', 'USER_DB_URI', 'kayak_users');
+const flightDb = resolveDbConfig('kayak_flights', 'FLIGHT_DB_URI', 'kayak_flights');
+const hotelDb = resolveDbConfig('kayak_hotels', 'HOTEL_DB_URI', 'kayak_hotels');
+const carDb = resolveDbConfig('kayak_cars', 'CAR_DB_URI', 'kayak_cars');
 
 const airports = [
   { code: 'JFK', name: 'John F. Kennedy International', city: 'New York', country: 'USA' },
@@ -36,10 +59,7 @@ function randomNumber(min, max) {
 
 async function generateUsers(count = 4) {
   console.log(`Generating ${count} users...`);
-  const userConn = await mongoose.createConnection(USER_DB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  const userConn = await mongoose.createConnection(userDb.uri, userDb.options);
   const UserModel = userConn.model('User', User.schema);
   
   for (let i = 0; i < count; i++) {
@@ -65,10 +85,7 @@ async function generateUsers(count = 4) {
 
 async function generateFlights(count = 4) {
   console.log(`Generating ${count} flights...`);
-  const flightConn = await mongoose.createConnection(FLIGHT_DB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  const flightConn = await mongoose.createConnection(flightDb.uri, flightDb.options);
   const FlightModel = flightConn.model('Flight', Flight.schema);
   
   const flights = [];
@@ -103,7 +120,16 @@ async function generateFlights(count = 4) {
       flightRating: {
         average: Number((Math.random() * 2 + 3).toFixed(1)),
         count: randomNumber(10, 500)
-      }
+      },
+      // Return leg (required by schema)
+      returnFlightId: `${flightId}-RET`,
+      returnDepartureDateTime: new Date(arrivalDate.getTime() + 2 * 60 * 60 * 1000), // 2h after arrival
+      returnArrivalDateTime: new Date(arrivalDate.getTime() + (durationHours + 2) * 60 * 60 * 1000 + durationMinutes * 60 * 1000),
+      returnDuration: { hours: durationHours + 2, minutes: durationMinutes },
+      returnTicketPrice: Math.round(randomNumber(200, 2000) * 0.9),
+      returnFlightClass: 'Economy',
+      returnTotalAvailableSeats: randomNumber(80, 250),
+      returnAvailableSeats: randomNumber(5, 150),
     });
   }
   
@@ -114,10 +140,7 @@ async function generateFlights(count = 4) {
 
 async function generateHotels(count = 4) {
   console.log(`Generating ${count} hotels...`);
-  const hotelConn = await mongoose.createConnection(HOTEL_DB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  const hotelConn = await mongoose.createConnection(hotelDb.uri, hotelDb.options);
   const HotelModel = hotelConn.model('Hotel', Hotel.schema);
   
   const hotels = [];
@@ -153,10 +176,7 @@ async function generateHotels(count = 4) {
 
 async function generateCars(count = 4) {
   console.log(`Generating ${count} cars...`);
-  const carConn = await mongoose.createConnection(CAR_DB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  const carConn = await mongoose.createConnection(carDb.uri, carDb.options);
   const CarModel = carConn.model('Car', Car.schema);
   
   const cars = [];
@@ -197,28 +217,16 @@ async function seedMinimal() {
     console.log('🗑️  Clearing existing data and seeding minimal dataset...\n');
 
     // Connect to each database to clear existing data
-    const userConn = await mongoose.createConnection(USER_DB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const userConn = await mongoose.createConnection(userDb.uri, userDb.options);
     const UserModel = userConn.model('User', User.schema);
     
-    const flightConn = await mongoose.createConnection(FLIGHT_DB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const flightConn = await mongoose.createConnection(flightDb.uri, flightDb.options);
     const FlightModel = flightConn.model('Flight', Flight.schema);
     
-    const hotelConn = await mongoose.createConnection(HOTEL_DB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const hotelConn = await mongoose.createConnection(hotelDb.uri, hotelDb.options);
     const HotelModel = hotelConn.model('Hotel', Hotel.schema);
     
-    const carConn = await mongoose.createConnection(CAR_DB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const carConn = await mongoose.createConnection(carDb.uri, carDb.options);
     const CarModel = carConn.model('Car', Car.schema);
 
     // Clear existing data
@@ -241,28 +249,16 @@ async function seedMinimal() {
     await generateCars(4);
 
     // Reconnect to count records
-    const userConn2 = await mongoose.createConnection(USER_DB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const userConn2 = await mongoose.createConnection(userDb.uri, userDb.options);
     const UserModel2 = userConn2.model('User', User.schema);
     
-    const flightConn2 = await mongoose.createConnection(FLIGHT_DB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const flightConn2 = await mongoose.createConnection(flightDb.uri, flightDb.options);
     const FlightModel2 = flightConn2.model('Flight', Flight.schema);
     
-    const hotelConn2 = await mongoose.createConnection(HOTEL_DB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const hotelConn2 = await mongoose.createConnection(hotelDb.uri, hotelDb.options);
     const HotelModel2 = hotelConn2.model('Hotel', Hotel.schema);
     
-    const carConn2 = await mongoose.createConnection(CAR_DB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const carConn2 = await mongoose.createConnection(carDb.uri, carDb.options);
     const CarModel2 = carConn2.model('Car', Car.schema);
 
     console.log('\n🎉 Minimal database seeding completed!');
@@ -285,4 +281,3 @@ async function seedMinimal() {
 }
 
 seedMinimal();
-

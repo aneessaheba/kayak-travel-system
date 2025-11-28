@@ -1,0 +1,21 @@
+{
+  "name": "backend-ops",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "seed:mongo": "NODE_PATH=./node_modules node ../scripts/seed-mongo.js",
+    "seed:redis": "NODE_PATH=./node_modules node ../scripts/seed-redis.js",
+    "kafka:topics": "NODE_PATH=./node_modules node ../scripts/create-kafka-topics.js",
+    "seed:database": "NODE_PATH=./node_modules node ../database/seeds/generate-data.js",
+    "seed:minimal": "NODE_PATH=./node_modules node ../database/seeds/seed-minimal.js",
+    "create:admin": "NODE_PATH=./node_modules node ../database/seeds/create-admin.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "kafkajs": "^2.2.4",
+    "mongodb": "^6.8.0",
+    "redis": "^4.6.13",
+    "mongoose": "^7.6.0",
+    "bcryptjs": "^2.4.3"
+  }
+}

@@ -25,6 +25,7 @@ import AdminHotelForm from './pages/AdminHotelForm';
 import AdminCarForm from './pages/AdminCarForm';
 import AdminBookings from './pages/AdminBookings';
 import { ToastProvider } from './context/ToastContext';
+import Chatbot from './components/Chatbot';
 
 function App() {
   return (
@@ -196,6 +197,7 @@ function App() {
                     </Routes>
                   </main>
                   <Footer />
+                  <Chatbot />
                 </>
               }
             />
@@ -207,4 +209,3 @@ function App() {
 }
 
 export default App;
-
