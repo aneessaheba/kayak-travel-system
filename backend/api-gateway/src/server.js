@@ -13,6 +13,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -24,7 +25,7 @@ const services = {
   car: process.env.CAR_SERVICE_URL || 'http://localhost:5004',
   billing: process.env.BILLING_SERVICE_URL || 'http://localhost:5005',
   admin: process.env.ADMIN_SERVICE_URL || 'http://localhost:5006',
-  agent: process.env.AGENT_SERVICE_URL || 'http://localhost:8000',
+  agent: process.env.AGENT_SERVICE_URL || 'http://ai-agent:8000',
 };
 
 // Proxy routes - forward requests to respective microservices
@@ -106,6 +107,19 @@ app.use('/api/agent', createProxyMiddleware({
     if (!res.headersSent) {
       res.status(500).json({ success: false, message: 'AI agent unavailable' });
     }
+  },
+  onProxyReq: (proxyReq, req) => {
+    // Re-write body when express.json has already parsed it, otherwise the upstream waits forever.
+    if (req.body && Object.keys(req.body).length) {
+      const bodyData = JSON.stringify(req.body);
+      proxyReq.setHeader('Content-Type', 'application/json');
+      proxyReq.setHeader('Content-Length', Buffer.byteLength(bodyData));
+      proxyReq.write(bodyData);
+    }
+    console.log(`[API Gateway] ${req.method} ${req.url} -> Agent ${services.agent}${req.url}`);
+  },
+  onProxyRes: (proxyRes, req) => {
+    console.log(`[API Gateway] Agent response ${proxyRes.statusCode} for ${req.url}`);
   }
 }));
 
@@ -143,5 +157,6 @@ app.listen(PORT, () => {
   console.log(`   - Hotel Service: ${services.hotel}`);
   console.log(`   - Car Service: ${services.car}`);
   console.log(`   - Billing Service: ${services.billing}`);
-  console.log(`   - Admin Service: ${services.admin}`);
+console.log(`   - Admin Service: ${services.admin}`);
+console.log(`   - AI Agent: ${services.agent}`);
 });

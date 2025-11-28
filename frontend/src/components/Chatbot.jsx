@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { sendChatMessage } from '../services/api';
 
 const Chatbot = () => {
@@ -8,33 +8,6 @@ const Chatbot = () => {
   ]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const wsRef = useRef(null);
-
-  const resolveWsUrl = () => {
-    const envWs = import.meta.env.VITE_AGENT_WS;
-    if (envWs) return envWs;
-    const loc = window.location;
-    const proto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${proto}//${loc.host}/api/agent/events`;
-  };
-
-  useEffect(() => {
-    wsRef.current = new WebSocket(resolveWsUrl());
-    wsRef.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setMessages((prev) => [...prev, { from: 'bot', text: data.message || event.data }]);
-      } catch {
-        setMessages((prev) => [...prev, { from: 'bot', text: event.data }]);
-      }
-    };
-    wsRef.current.onerror = () => {
-      setMessages((prev) => [...prev, { from: 'bot', text: 'Connection issue with AI agent.' }]);
-    };
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-    };
-  }, []);
 
   const handleSend = async () => {
     if (!input.trim()) return;

@@ -211,7 +211,7 @@ export const adminAPI = {
 
 // AI Agent (via gateway by default)
 const agentApi = axios.create({
-  baseURL: import.meta.env.VITE_AGENT_URL || '/api/agent',
+  baseURL: import.meta.env.VITE_AGENT_URL || 'http://localhost:5000/api/agent',
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });

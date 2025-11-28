@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 from typing import Iterable, List
 
-import pandas as pd
+import csv
 from pymongo import UpdateOne
 
 from .config import settings
@@ -19,8 +19,9 @@ def _load_rows(path: Path) -> Iterable[dict]:
     logger.warning("Ingest skipped: CSV not found at %s", path)
     return []
   try:
-    df = pd.read_csv(path)
-    return df.to_dict(orient="records")
+    with path.open("r", encoding="utf-8") as f:
+      reader = csv.DictReader(f)
+      return list(reader)
   except Exception as exc:
     logger.error("Failed to read CSV %s: %s", path, exc)
     return []

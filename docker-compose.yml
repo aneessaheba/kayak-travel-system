@@ -35,5 +35,7 @@ services:
       context: .
       dockerfile: ai-agent/Dockerfile
     container_name: kayak-ai-agent
+    env_file:
+      - ./ai-agent/.env
     ports:
       - "8000:8000"

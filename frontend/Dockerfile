@@ -2,15 +2,25 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY . .
+# Install dependencies using frontend package manifest
+COPY frontend/package*.json ./
+RUN npm install
 
-RUN npm ci
-RUN npm run build --workspace frontend
+# Copy frontend source
+COPY frontend ./
+
+# Inject API endpoints at build time (override with build args if needed)
+ARG VITE_AGENT_URL=http://localhost:5000/api/agent
+ARG VITE_AGENT_WS=ws://localhost:5000/api/agent/events
+ENV VITE_AGENT_URL=${VITE_AGENT_URL}
+ENV VITE_AGENT_WS=${VITE_AGENT_WS}
+
+# Build Vite app
+RUN npm run build
 
 FROM nginx:1.25-alpine
 
-COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
 

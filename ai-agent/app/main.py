@@ -149,8 +149,8 @@ async def chat_endpoint(body: ChatRequest):
     return ChatResponse(reply="\n".join(combined))
 
   llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
-    api_key=settings.gemini_api_key,
+    model="gemini-2.5-flash",
+    google_api_key=settings.gemini_api_key,
     temperature=0.4,
   )
   prompt = (
@@ -173,7 +173,14 @@ async def chat_endpoint(body: ChatRequest):
     reply = msg.content if hasattr(msg, "content") else str(msg)
   except Exception as exc:
     logger.error("Gemini call failed: %s", exc)
-    reply = "I'm having trouble reaching the assistant right now."
+    fallback_bits = []
+    if tavily_snippet:
+      fallback_bits.append(tavily_snippet)
+    if weather_snippet:
+      fallback_bits.append(weather_snippet)
+    fallback_bits.append(f"Thanks! I received: {body.message}")
+    fallback_bits.append("AI model is temporarily unavailable; returned cached/search context only.")
+    reply = "\n".join(fallback_bits)
   return ChatResponse(reply=reply)
 
 
