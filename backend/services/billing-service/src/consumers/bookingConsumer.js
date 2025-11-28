@@ -1,46 +1,60 @@
 const { Kafka } = require('kafkajs');
 const BillingModel = require('../models/billingModel');
+const BookingModel = require('../models/bookingModel');
 const { generateBillingId } = require('../utils/idGenerator');
-const { publishEvent, buildKafkaConfig } = require('../config/kafka');
+const { publishEvent } = require('../config/kafka');
 
-const kafka = new Kafka(buildKafkaConfig());
+const kafka = new Kafka({
+  clientId: 'billing-service',
+  brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+  connectionTimeout: 10000,
+  requestTimeout: 30000,
+  retry: {
+    initialRetryTime: 300,
+    retries: 8
+  }
+});
 
 const consumer = kafka.consumer({ 
   groupId: 'billing-service-group' 
 });
 
+let isConnected = false;
+
 async function connectConsumer() {
   try {
+    console.log('Connecting Kafka consumer...');
     await consumer.connect();
     console.log('✅ Kafka consumer connected');
 
-    // Subscribe to booking.created topic
     await consumer.subscribe({ 
       topic: 'booking.created',
       fromBeginning: false 
     });
 
     console.log('✅ Subscribed to topic: booking.created');
+    isConnected = true;
   } catch (error) {
     console.error('❌ Kafka consumer connection failed:', error.message);
+    console.log('⚠️  Consumer will not be available');
+    isConnected = false;
   }
 }
 
 async function startConsumer() {
   await connectConsumer();
 
-  // Process incoming messages
+  if (!isConnected) {
+    console.log('⚠️  Skipping consumer - Kafka not available');
+    return;
+  }
+
   await consumer.run({
     eachMessage: async ({ topic, partition, message }) => {
       try {
-        // Parse message
         const event = JSON.parse(message.value.toString());
         console.log('📥 Received event from topic:', topic);
-        console.log('Event data:', event);
-
-        // Handle booking.created event
         await handleBookingCreated(event);
-
       } catch (error) {
         console.error('❌ Error processing message:', error.message);
       }
@@ -54,30 +68,23 @@ async function handleBookingCreated(event) {
       booking_id,
       user_id,
       booking_type,
-      listing_id,
-      travel_date,
-      return_date,
-      quantity,
       total_amount,
       payment_method = 'credit_card'
     } = event;
 
-    // Validate required fields
     if (!booking_id || !user_id || !booking_type || !total_amount) {
-      console.error('❌ Missing required fields in event:', event);
+      console.error('❌ Missing required fields in event');
       return;
     }
 
-    // Check if billing already exists for this booking
+    // Check if billing already exists
     const existingBilling = await BillingModel.getBillingByBookingId(booking_id);
     if (existingBilling) {
       console.log('⚠️  Billing already exists for booking:', booking_id);
       return;
     }
 
-    // Generate billing ID
     const billing_id = generateBillingId();
-
     console.log('💳 Processing payment for booking:', booking_id);
 
     // Process payment
@@ -87,7 +94,6 @@ async function handleBookingCreated(event) {
       user_id
     });
 
-    // Create billing record
     const billingData = {
       billing_id,
       user_id,
@@ -101,18 +107,20 @@ async function handleBookingCreated(event) {
     await BillingModel.createBilling(billingData);
     console.log('✅ Billing created:', billing_id);
 
-    // Publish payment result to Kafka
+    // Update booking status to confirmed if payment successful
+    if (paymentSuccess) {
+      await BookingModel.updateBookingStatus(booking_id, 'confirmed');
+      console.log('✅ Booking confirmed:', booking_id);
+    }
+
+    // Publish payment result
     await publishEvent('payment.processed', {
       billing_id,
       booking_id,
       user_id,
-      booking_type,
-      listing_id,
-      travel_date,
-      return_date: return_date || null,
-      quantity,
       amount: total_amount,
       status: billingData.transaction_status,
+      booking_type,
       timestamp: new Date().toISOString()
     });
 
@@ -120,38 +128,28 @@ async function handleBookingCreated(event) {
 
   } catch (error) {
     console.error('❌ Error handling booking.created:', error.message);
-    
-    // Publish payment failed event
+  }
+}
+
+// Mock payment processing
+async function processPayment(paymentData) {
+  console.log('Processing payment:', paymentData);
+  await new Promise(resolve => setTimeout(resolve, 100));
+  return Math.random() > 0.05; // 95% success rate
+}
+
+async function disconnectConsumer() {
+  if (isConnected) {
     try {
-      await publishEvent('payment.failed', {
-        booking_id: event.booking_id,
-        user_id: event.user_id,
-        error: error.message,
-        timestamp: new Date().toISOString()
-      });
-    } catch (publishError) {
-      console.error('❌ Failed to publish payment.failed event:', publishError.message);
+      await consumer.disconnect();
+      console.log('Kafka consumer disconnected');
+    } catch (error) {
+      console.error('Error disconnecting consumer:', error.message);
     }
   }
 }
 
-// Mock payment processing function
-async function processPayment(paymentData) {
-  // Simulate payment gateway call
-  console.log('Processing payment:', paymentData);
-  
-  // Simulate delay (payment gateway response time)
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  // Mock success (90% success rate for testing)
-  return Math.random() > 0.1;
-}
-
-async function disconnectConsumer() {
-  await consumer.disconnect();
-  console.log('Kafka consumer disconnected');
-}
-
+// IMPORTANT: Export functions
 module.exports = {
   startConsumer,
   disconnectConsumer

@@ -3,40 +3,35 @@ const cors = require('cors');
 require('dotenv').config();
 
 const billingRoutes = require('./routes/billingRoutes');
+const bookingRoutes = require('./routes/bookingRoutes');  // Add this
 const { connectProducer, disconnectProducer } = require('./config/kafka');
-const { startConsumer, disconnectConsumer } = require('./consumers/consumer');
+const { startConsumer, disconnectConsumer } = require('./consumers/bookingConsumer');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
 // Routes
 app.use('/api/billing', billingRoutes);
+app.use('/api/bookings', bookingRoutes);  // Add this
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
-    service: 'billing-service',
+    service: 'booking-billing-service',
     timestamp: new Date().toISOString()
   });
 });
 
-// Start server
 const startServer = async () => {
   try {
-    // Connect Kafka producer
     await connectProducer();
-    
-    // Start Kafka consumer
     await startConsumer();
     
-    // Start Express server
     app.listen(PORT, () => {
-      console.log(`🚀 Billing Service running on port ${PORT}`);
+      console.log(`🚀 Booking & Billing Service running on port ${PORT}`);
       console.log(`📡 Listening for Kafka events...`);
       console.log(`🏥 Health check: http://localhost:${PORT}/health`);
     });
@@ -48,7 +43,6 @@ const startServer = async () => {
 
 startServer();
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing connections...');
   await disconnectProducer();

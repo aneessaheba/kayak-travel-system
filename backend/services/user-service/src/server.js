@@ -1,63 +1,96 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
+const path = require('path');
+require('dotenv').config();
 
+// Import configurations
+const { testConnection } = require('./config/database');
+const { connectRedis } = require('./config/redis');
+
+// Import routes and middleware
+const userRoutes = require('./routes/userRoutes');
+const errorHandler = require('./middleware/errorHandler');
+const requestLogger = require('./middleware/requestLogger');
+
+// Initialize Express app
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 3002;
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors()); // Enable CORS for frontend
+app.use(express.json()); // Parse JSON bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(requestLogger); // Log all requests
 
-// MongoDB connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27020/kayak_users';
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => console.log('✅ Connected to MongoDB - User Service'))
-  .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
-    process.exit(1);
-  });
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Routes
-const userRoutes = require('./routes/userRoutes');
-app.use('/api/users', userRoutes);
-
-// Health check
+// Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    service: 'user-service',
+  res.status(200).json({
+    success: true,
+    message: 'User Service is running',
     timestamp: new Date().toISOString()
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+// API routes
+app.use('/api/users', userRoutes);
 
 // 404 handler
-app.use((req, res) => {
+app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    error: 'not_found',
+    message: 'Endpoint not found'
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 User Service running on port ${PORT}`);
-  console.log(`📝 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔗 API endpoint: http://localhost:${PORT}/api/users`);
+// Global error handler (must be last)
+app.use(errorHandler);
+
+// Initialize connections and start server
+async function startServer() {
+  try {
+    console.log('🚀 Starting User Service...\n');
+    
+    // Test MySQL connection
+    console.log('📊 Connecting to MySQL...');
+    await testConnection();
+    
+    // Connect to Redis
+    console.log('💾 Connecting to Redis...');
+    await connectRedis();
+    
+    console.log('\n✅ All connections established successfully!\n');
+    
+    // Start Express server
+    app.listen(PORT, () => {
+      console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+      console.log(`🎉 User Service running on port ${PORT}`);
+      console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+      console.log(`📡 API endpoints: http://localhost:${PORT}/api/users`);
+      console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('\n\n🛑 Shutting down gracefully...');
+  process.exit(0);
 });
 
+process.on('SIGTERM', async () => {
+  console.log('\n\n🛑 Shutting down gracefully...');
+  process.exit(0);
+});
+
+// Start the server
+startServer();
+
+module.exports = app;
