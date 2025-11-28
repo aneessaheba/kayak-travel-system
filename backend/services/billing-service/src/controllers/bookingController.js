@@ -194,7 +194,39 @@ class BookingController {
       });
     }
   }
+  static async hasCompletedBooking(req, res) {
+  try {
+    const { user_id, booking_type, listing_id } = req.query;
 
+    // Validate required parameters
+    if (!user_id || !booking_type || !listing_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'user_id, booking_type, and listing_id are required'
+      });
+    }
+
+    // Check if booking exists
+    const hasBooking = await BookingModel.hasCompletedBooking(
+      user_id, 
+      booking_type, 
+      listing_id
+    );
+
+    res.status(200).json({
+      success: true,
+      has_booking: hasBooking
+    });
+
+  } catch (error) {
+    console.error('Error checking booking:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check booking',
+      error: error.message
+       });
+     }
+    }
   // Update booking status
   static async updateBookingStatus(req, res) {
     try {

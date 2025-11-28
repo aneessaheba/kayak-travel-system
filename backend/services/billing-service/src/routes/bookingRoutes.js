@@ -14,6 +14,9 @@ router.get('/user/:userId', bookingController.getUserBookings);
 // Get user's upcoming bookings
 router.get('/user/:userId/upcoming', bookingController.getUpcomingBookings);
 
+// Check if user has completed booking (for reviews)
+router.get('/has-booking', bookingController.hasCompletedBooking);
+
 // Cancel booking
 router.put('/:bookingId/cancel', bookingController.cancelBooking);
 

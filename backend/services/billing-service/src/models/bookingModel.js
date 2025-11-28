@@ -135,6 +135,29 @@ class BookingModel {
     return rows;
   }
 
+  static async hasCompletedBooking(userId, bookingType, listingId) {
+  try {
+    const connection = await pool.getConnection();
+    
+    const [rows] = await connection.query(
+      `SELECT booking_id FROM bookings 
+       WHERE user_id = ? 
+       AND booking_type = ? 
+       AND listing_id = ? 
+       AND status = 'confirmed'
+       LIMIT 1`,
+      [userId, bookingType, listingId]
+    );
+    
+    connection.release();
+    return rows.length > 0;
+    
+  } catch (error) {
+    console.error('Error checking booking:', error);
+    return false;
+    }
+  }
+
   // Get user's past bookings
   static async getPastBookings(user_id) {
     const query = `
