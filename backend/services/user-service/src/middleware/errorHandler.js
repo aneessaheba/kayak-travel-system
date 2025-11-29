@@ -1,3 +1,7 @@
+/**
+ * Global Error Handler Middleware
+ * Catches all errors and returns consistent JSON responses
+ */
 
 const errorHandler = (err, req, res, next) => {
   // Log error for debugging

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const UserController = require('../controllers/userController');
+const upload = require('../config/upload');
 
 /**
  * User Routes
@@ -17,6 +18,11 @@ router.post('/', UserController.createUser);
 // Body: { email, password }
 router.post('/login', UserController.loginUser);
 
+// Upload profile image
+// POST /api/users/:user_id/upload-image
+// Body: multipart/form-data with 'image' field
+router.post('/:user_id/upload-image', upload.single('image'), UserController.uploadProfileImage);
+
 // Get all users (with pagination)
 // GET /api/users?limit=100&offset=0
 router.get('/', UserController.getAllUsers);
@@ -29,17 +35,17 @@ router.get('/stats', UserController.getUserStats);
 // GET /api/users/email/:email
 router.get('/email/:email', UserController.getUserByEmail);
 
-// Get user by ID
-// GET /api/users/:user_id
-router.get('/:user_id', UserController.getUserById);
-
-// Update user
+// Update user (MUST be before GET /:user_id)
 // PUT /api/users/:user_id
 // Body: { first_name?, last_name?, email?, password?, address?, city?, state?, zip_code?, phone_number?, profile_image? }
 router.put('/:user_id', UserController.updateUser);
 
-// Delete user
+// Delete user (MUST be before GET /:user_id)
 // DELETE /api/users/:user_id
 router.delete('/:user_id', UserController.deleteUser);
+
+// Get user by ID (MUST be last among /:user_id routes)
+// GET /api/users/:user_id
+router.get('/:user_id', UserController.getUserById);
 
 module.exports = router;
