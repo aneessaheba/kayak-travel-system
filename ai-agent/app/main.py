@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+import re
 from typing import List, Optional
 
 from dotenv import load_dotenv
@@ -133,9 +134,30 @@ async def chat_endpoint(body: ChatRequest):
 
   # Lightweight heuristics to call tools
   lower_msg = body.message.lower()
-  if "weather" in lower_msg or "temperature" in lower_msg:
-    weather_snippet = await fetch_weather(body.message)
-  if any(word in lower_msg for word in ["hotel", "flight", "deal", "trip", "package", "stay"]):
+
+  def extract_location_for_weather(text: str) -> str:
+    match = re.search(r"(?:weather|forecast|temperature|temp)\s*(?:in|for)?\s*([a-zA-Z\s,]+)", text, re.IGNORECASE)
+    if match and match.group(1).strip():
+      candidate = match.group(1)
+    # fallback: try after "in"
+    elif (m2 := re.search(r"\bin\s+([a-zA-Z\s,]+)", text, re.IGNORECASE)) and m2.group(1).strip():
+      candidate = m2.group(1)
+    else:
+      candidate = text
+
+    # Strip punctuation/numerics and drop trailing time qualifiers like "tomorrow"
+    cleaned = re.sub(r"[^a-zA-Z\s,]", " ", candidate)
+    for stop in ["tomorrow", "today", "tonight", "now", "this week", "next week", "forecast"]:
+      parts = cleaned.lower().split(stop)
+      if len(parts) > 1:
+        cleaned = parts[0]
+        break
+    return cleaned.strip() or candidate.strip()
+
+  if any(word in lower_msg for word in ["weather", "temperature", "temp", "forecast", "rain", "snow", "sunny"]):
+    location = extract_location_for_weather(body.message)
+    weather_snippet = await fetch_weather(location)
+  if any(word in lower_msg for word in ["hotel", "flight", "deal", "trip", "package", "stay", "book", "booking"]):
     tavily_snippet = await search_tavily(body.message)
 
   # If no API key, fall back to echo with tool snippets
