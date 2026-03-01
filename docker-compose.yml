@@ -15,6 +15,7 @@ services:
       KAFKA_SSL_CA_PATH: /app/kafka-creds/ca.pem
       KAFKA_SSL_CERT_PATH: /app/kafka-creds/service.cert
       KAFKA_SSL_KEY_PATH: /app/kafka-creds/service.key
+      REVIEWS_SERVICE_URL: http://localhost:3003
       AGENT_SERVICE_URL: http://ai-agent:8000
       JWT_SECRET: change-me
     volumes:

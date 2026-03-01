@@ -11,6 +11,17 @@ const ReviewController = require('../controllers/reviewController');
 // Public Routes (Anyone can access)
 // ============================================
 
+// Static routes must come before parameterised routes to avoid Express
+// treating literal path segments (e.g. 'stats', 'check') as param values.
+
+// Get total review count
+// GET /api/reviews/stats/total
+router.get('/stats/total', ReviewController.getTotalReviews);
+
+// Check if user has reviewed an entity
+// GET /api/reviews/check?user_id=X&entity_type=Y&entity_id=Z
+router.get('/check', ReviewController.checkUserReview);
+
 // Get all reviews for an entity (hotel/flight/car)
 // GET /api/reviews/:entity_type/:entity_id
 // Query params: ?limit=50&offset=0&sort=recent
@@ -20,10 +31,6 @@ router.get('/:entity_type/:entity_id', ReviewController.getReviewsByEntity);
 // GET /api/reviews/:entity_type/:entity_id/stats
 router.get('/:entity_type/:entity_id/stats', ReviewController.getReviewStats);
 
-// Get total review count
-// GET /api/reviews/stats/total
-router.get('/stats/total', ReviewController.getTotalReviews);
-
 // ============================================
 // User Routes (Require user authentication)
 // ============================================
@@ -32,10 +39,6 @@ router.get('/stats/total', ReviewController.getTotalReviews);
 // POST /api/reviews/:entity_type/:entity_id
 // Body: { entity_name, user_id, user_name, rating, review_text, images }
 router.post('/:entity_type/:entity_id', ReviewController.createReview);
-
-// Check if user has reviewed an entity
-// GET /api/reviews/check?user_id=X&entity_type=Y&entity_id=Z
-router.get('/check', ReviewController.checkUserReview);
 
 // Get all reviews by a specific user
 // GET /api/reviews/user/:user_id/my-reviews
