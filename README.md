@@ -102,14 +102,38 @@ MySQL+Mongo    MongoDB        Gemini + Tavily + OpenWeather
 - Redis-cached analytics responses
 
 ### AI Agent Service (Port 8000) — Python / FastAPI
-- **Chat endpoint** (`POST /chat`): natural language travel assistant
-  - Weather tool: calls OpenWeather API for destination forecasts
-  - Web search tool: calls Tavily API for live travel deals
-  - Google Gemini 2.5 Flash as the LLM backbone
-  - Graceful fallback if API keys are unavailable
-- **Bundle planner** (`POST /bundles`): combines flights + hotels from MongoDB into scored packages
+
+#### Chat Pipeline (`POST /chat`)
+Each request runs a multi-stage pipeline before the LLM is called:
+
+**1. Tool activation (heuristic)**
+- Weather tool → calls OpenWeather API when the query mentions weather/temp/forecast
+- Web search tool → calls Tavily API when the query mentions hotels/flights/deals
+
+**2. RAG retrieval over live inventory (`rag.py`)**
+- Embeds the user query using Google `text-embedding-004` (`retrieval_query` task type)
+- Loads up to 200 deals from `agent_db.deals` (populated by the ingest loop)
+- For each deal, retrieves its document embedding from Redis cache or generates a new one via the embedding API and stores it with a 1-hour TTL
+- Scores every deal by cosine similarity against the query embedding
+- Returns the top-k most semantically relevant candidates
+
+**3. Multi-signal retrieval ranking (`ranking.py`)**
+- Re-ranks RAG candidates using a weighted linear scoring model:
+  - `0.55 × relevance` — cosine similarity from the embedding stage
+  - `0.25 × price_fit` — lower price preferred; over-budget items penalised 5×
+  - `0.15 × availability` — higher inventory depth preferred
+  - `0.05 × kind_bonus` — boost for user's preferred category (flight/hotel/car)
+- Weights calibrated on domain query-item pairs from the Kayak travel dataset
+
+**4. LLM synthesis (Gemini 2.5 Flash)**
+- Ranked inventory context + web search results + weather data are all injected into the prompt
+- Gemini generates a concise, fact-grounded travel recommendation
+- Graceful fallback (returns context directly) if the API key is unavailable
+
+#### Other Agent Endpoints
+- **Bundle planner** (`POST /bundles`): combines flights + hotels from MongoDB into scored packages; accepts `budget`, `destination`, `preferences`
 - **WebSocket** (`/events`): real-time event broadcasting to connected clients
-- **Ingestion pipeline** (`ingest.py`): loads travel deals from CSV into MongoDB on a configurable interval
+- **Ingestion pipeline** (`ingest.py`): loads travel deals from CSV into `agent_db.deals` on a configurable interval (default 15 min)
 
 ---
 
@@ -203,10 +227,12 @@ MYSQL_DATABASE=<db>
 ```
 MONGODB_URI=...
 MONGODB_DB=agent_db
-REDIS_URL=...
-GEMINI_API_KEY=...
+REDIS_URL=...             # used for RAG embedding cache (1-hour TTL per document)
+GEMINI_API_KEY=...        # used for LLM chat and text-embedding-004 embeddings
 TAVILY_API_KEY=...
 OPENWEATHER_API_KEY=...
+RAG_ENABLED=true          # set to false to skip RAG retrieval
+RAG_TOP_K=5               # number of candidates returned by RAG before re-ranking
 ```
 
 ---
@@ -280,7 +306,7 @@ npm run kafka:topics      # create Kafka topics on Aiven
 | Frontend      | React 18, Vite, Redux Toolkit, Tailwind CSS, Framer Motion |
 | API Gateway   | Node.js, Express, http-proxy-middleware                 |
 | Backend       | Node.js, Express (per-service)                         |
-| AI Agent      | Python, FastAPI, LangChain, Google Gemini 2.5 Flash     |
+| AI Agent      | Python, FastAPI, LangChain, Google Gemini 2.5 Flash, text-embedding-004 |
 | Databases     | MongoDB Atlas, MySQL                                    |
 | Cache         | Redis Cloud                                             |
 | Message Queue | Apache Kafka (Aiven, mTLS)                              |
@@ -296,7 +322,8 @@ npm run kafka:topics      # create Kafka topics on Aiven
 - **Reviews are centralised** — a dedicated Reviews Service handles ratings for flights, hotels, and cars, rather than embedding reviews in each collection.
 - **Redis cache-aside pattern** — every read checks Redis first; writes invalidate affected keys. TTLs: 1 hour for user/review data, configurable for analytics.
 - **Kafka for payment events** — booking creation and payment outcome are decoupled; the billing service is the sole consumer and producer for financial events.
-- **AI agent is stateless** — each `/chat` request independently decides which tools to call (weather, web search) based on keyword heuristics before calling Gemini.
+- **RAG pipeline** — each `/chat` request embeds the user query and retrieves the most semantically similar deals from MongoDB before calling Gemini. Document embeddings are cached in Redis to avoid redundant API calls on repeated queries.
+- **Multi-signal ranking** — retrieved candidates are re-ranked by a weighted linear model (relevance + price fit + availability + category preference) before being injected into the LLM prompt, giving Gemini the highest-quality context.
 
 ---
 
