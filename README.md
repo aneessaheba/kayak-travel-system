@@ -125,10 +125,10 @@ Each request runs a multi-stage pipeline before the LLM is called:
   - `0.05 × kind_bonus` — boost for user's preferred category (flight/hotel/car)
 - Weights calibrated on domain query-item pairs from the Kayak travel dataset
 
-**4. LLM synthesis (Gemini 2.5 Flash)**
-- Ranked inventory context + web search results + weather data are all injected into the prompt
-- Gemini generates a concise, fact-grounded travel recommendation
-- Graceful fallback (returns context directly) if the API key is unavailable
+**4. LLM inference — fine-tuned model with Gemini fallback**
+- **Primary:** Fine-tuned `google/gemma-2b-it` loaded via PEFT (QLoRA adapter, 4-bit NF4 quantisation). Enabled via `USE_FINETUNED_MODEL=true` when a GPU is available.
+- **Fallback:** Gemini 2.5 Flash — used automatically if the adapter is unavailable, the server has no GPU, or fine-tuned inference returns no output.
+- Ranked inventory context + web search results + weather data injected into both paths
 
 #### Other Agent Endpoints
 - **Bundle planner** (`POST /bundles`): combines flights + hotels from MongoDB into scored packages; accepts `budget`, `destination`, `preferences`
@@ -246,12 +246,14 @@ MYSQL_DATABASE=<db>
 ```
 MONGODB_URI=...
 MONGODB_DB=agent_db
-REDIS_URL=...             # used for RAG embedding cache (1-hour TTL per document)
-GEMINI_API_KEY=...        # used for LLM chat and text-embedding-004 embeddings
+REDIS_URL=...                        # RAG embedding cache (1-hour TTL per document)
+GEMINI_API_KEY=...                   # LLM chat + text-embedding-004 embeddings
 TAVILY_API_KEY=...
 OPENWEATHER_API_KEY=...
-RAG_ENABLED=true          # set to false to skip RAG retrieval
-RAG_TOP_K=5               # number of candidates returned by RAG before re-ranking
+RAG_ENABLED=true                     # set to false to skip RAG retrieval
+RAG_TOP_K=5                          # candidates returned by RAG before re-ranking
+USE_FINETUNED_MODEL=false            # set to true on a GPU server to use QLoRA adapter
+FINETUNED_MODEL_PATH=notebooks/adapter  # path to saved LoRA adapter directory
 ```
 
 ---
@@ -389,9 +391,38 @@ npm run kafka:topics      # create Kafka topics on Aiven
 
 ---
 
+## Fine-Tuning (QLoRA)
+
+`notebooks/finetune_travel_qlora.ipynb` fine-tunes `google/gemma-2b-it` on a
+50-example travel Q&A dataset using QLoRA (4-bit NF4 quantisation, rank-16 LoRA
+adapters via HuggingFace PEFT + TRL SFTTrainer). Runs on a Colab T4 GPU in ~15 min.
+
+```
+Base model: google/gemma-2b-it
+Quantisation: 4-bit NF4 (BitsAndBytes) + double quantisation
+LoRA rank: 16  |  alpha: 32  |  dropout: 0.05
+Target modules: q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj
+Training: SFTTrainer, 3 epochs, cosine LR schedule, paged_adamw_32bit
+```
+
+To use the adapter in the agent service:
+```bash
+# 1. Run the notebook (Colab or local GPU) — adapter saves to ./travel-concierge-adapter/
+# 2. Copy adapter to the project
+cp -r ./travel-concierge-adapter/ notebooks/adapter/
+# 3. Enable in ai-agent/.env
+USE_FINETUNED_MODEL=true
+FINETUNED_MODEL_PATH=notebooks/adapter
+```
+
+The agent loads the adapter on startup. If unavailable, Gemini 2.5 Flash takes over automatically.
+
+---
+
 ## Documentation
 
 - **Architecture deep-dive** — [`docs/architecture.md`](docs/architecture.md) covers the full service map, booking and AI chat data flows, database schemas, Redis key patterns, Kafka topics, API Gateway routing, and AWS deployment layout.
+- **Fine-tuning notebook** — [`notebooks/finetune_travel_qlora.ipynb`](notebooks/finetune_travel_qlora.ipynb)
 - **Performance results** — [`jmeter/PERFORMANCE_TEST_RESULTS.md`](jmeter/PERFORMANCE_TEST_RESULTS.md)
 
 ---

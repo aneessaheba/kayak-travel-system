@@ -11,3 +11,10 @@ aiofiles==23.2.1
 httpx==0.24.1
 pymongo==4.8.0
 redis>=5.0.0
+
+# Optional — required only when USE_FINETUNED_MODEL=true (GPU server)
+# torch>=2.2.0
+# transformers>=4.40.0
+# peft>=0.10.0
+# bitsandbytes>=0.43.1
+# accelerate>=0.29.3

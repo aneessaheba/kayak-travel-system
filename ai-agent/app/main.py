@@ -19,6 +19,7 @@ from .models import Deal, Bundle
 from .tools import search_tavily, fetch_weather
 from .rag import retrieve_relevant_inventory, format_rag_context
 from .ranking import rank_candidates
+from .finetuned import infer as finetuned_infer
 
 load_dotenv()
 
@@ -214,6 +215,19 @@ async def chat_endpoint(body: ChatRequest):
       combined.append(tavily_snippet)
     combined.append(f"Thanks! I received: {body.message}")
     return ChatResponse(reply="\n".join(combined))
+
+  # ── Fine-tuned model (primary) — Gemini is fallback ───────────────────────
+  if settings.use_finetuned_model:
+    context_for_ft = "\n\n".join(
+        p for p in [rag_context,
+                    f"Web search results:\n{tavily_snippet}" if tavily_snippet else "",
+                    f"Weather info:\n{weather_snippet}" if weather_snippet else ""]
+        if p
+    )
+    ft_reply = finetuned_infer(body.message, settings.finetuned_model_path, context_for_ft)
+    if ft_reply:
+      return ChatResponse(reply=ft_reply)
+    logger.info("Fine-tuned model returned no output; falling back to Gemini.")
 
   # ── LLM inference with full context ───────────────────────────────────────
   llm = ChatGoogleGenerativeAI(
