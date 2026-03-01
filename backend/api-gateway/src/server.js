@@ -25,6 +25,7 @@ const services = {
   car: process.env.CAR_SERVICE_URL || 'http://localhost:5004',
   billing: process.env.BILLING_SERVICE_URL || 'http://localhost:5005',
   admin: process.env.ADMIN_SERVICE_URL || 'http://localhost:5006',
+  reviews: process.env.REVIEWS_SERVICE_URL || 'http://localhost:3003',
   agent: process.env.AGENT_SERVICE_URL || 'http://ai-agent:8000',
 };
 
@@ -93,6 +94,15 @@ app.use('/api/admin', createProxyMiddleware({
   }
 }));
 
+app.use('/api/reviews', createProxyMiddleware({
+  target: services.reviews,
+  changeOrigin: true,
+  onError: (err, req, res) => {
+    console.error(`[API Gateway] Error proxying to reviews service:`, err.message);
+    res.status(500).json({ success: false, message: 'Reviews service unavailable' });
+  }
+}));
+
 // AI Agent proxy (HTTP + WS)
 app.use('/api/agent', createProxyMiddleware({
   target: services.agent,
@@ -157,6 +167,7 @@ app.listen(PORT, () => {
   console.log(`   - Hotel Service: ${services.hotel}`);
   console.log(`   - Car Service: ${services.car}`);
   console.log(`   - Billing Service: ${services.billing}`);
-console.log(`   - Admin Service: ${services.admin}`);
-console.log(`   - AI Agent: ${services.agent}`);
+  console.log(`   - Admin Service: ${services.admin}`);
+  console.log(`   - Reviews Service: ${services.reviews}`);
+  console.log(`   - AI Agent: ${services.agent}`);
 });
