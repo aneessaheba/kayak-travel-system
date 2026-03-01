@@ -153,6 +153,13 @@ Built with React 18, Vite, Redux Toolkit, Tailwind CSS, and Framer Motion.
 - Inventory management: create/edit flights (with round-trip details), hotels (with room types), cars
 - Bookings management and user management
 
+**UI components:**
+- **ScrollToTop** — animated scroll-to-top button (Framer Motion fade/scale, appears after 400 px)
+- **SeatSelection** — interactive 30-row flight seat map; First / Business / Economy zones colour-coded; deterministic taken-seat pattern
+- **RoomSelection** — hotel room picker showing price, bed type, max occupancy, amenities, and rooms remaining
+- **ReviewModal** — star-rating (hover + click) and text form; POSTs to Reviews Service with JWT auth
+- **FlightReviewsModal / HotelReviewsModal / CarReviewsModal** — fetches reviews + aggregated stats, renders a 5-star distribution bar chart, helpful-vote button, and embedded ReviewModal
+
 **AI Chatbot widget:**
 - Floating button (bottom-right) available on all pages
 - Connects to `/api/agent/chat` via the gateway
@@ -171,6 +178,18 @@ User books → POST /api/billing/bookings
 
 Kafka topics: `booking.created`, `payment.processed`, `payment.failed`
 Kafka cluster: Aiven (mTLS with CA/cert/key in `kafka/creds/`)
+
+**Kafka monitor** — real-time console dashboard for the booking pipeline:
+
+```bash
+node kafka/monitor-bookings.js
+# Filter to one topic
+node kafka/monitor-bookings.js --topic payment.processed
+# Replay from beginning
+node kafka/monitor-bookings.js --from beginning
+```
+
+Colour-coded output shows each event as it arrives, with per-topic counters.
 
 ---
 
@@ -254,6 +273,27 @@ RAG_TOP_K=5               # number of candidates returned by RAG before re-ranki
 
 ---
 
+## Quick Start
+
+The `start-all.sh` (macOS/Linux) and `start-all.ps1` (Windows) scripts launch every
+service in one command:
+
+```bash
+# macOS / Linux
+chmod +x start-all.sh
+./start-all.sh
+
+# Skip optional services
+./start-all.sh --skip-frontend --skip-agent
+
+# Windows PowerShell
+.\start-all.ps1
+```
+
+Each service starts in the background. Logs go to the terminal that launched the script.
+
+---
+
 ## Run with Docker
 
 ```bash
@@ -284,6 +324,28 @@ cd frontend && npm install && npm run dev
 # AI Agent
 cd ai-agent && uv pip install -e . && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+## Performance Testing (JMeter)
+
+Load tests were run with 50 concurrent users, 30 s ramp-up, 120 s duration against three
+incremental configurations. Full results: [`jmeter/PERFORMANCE_TEST_RESULTS.md`](jmeter/PERFORMANCE_TEST_RESULTS.md).
+
+| Endpoint group              | Config A (base) p95 | Config C (+Redis+Kafka) p95 | Improvement |
+|-----------------------------|---------------------|-----------------------------|-------------|
+| Flight / Hotel / Car search | 580 ms              | 89 ms                       | **−85 %**   |
+| User profile reads          | 510 ms              | 35 ms                       | **−93 %**   |
+| Booking + billing           | 980 ms              | 190 ms                      | **−81 %**   |
+
+To re-run the tests:
+```bash
+mkdir -p jmeter/results
+jmeter -n -t jmeter/KAYAK_PERFORMANCE_TEST_PLAN.jmx \
+  -JTHREADS=50 -JRAMP_UP=30 -JDURATION=120 \
+  -l jmeter/results/results.csv \
+  -e -o jmeter/results/report/
+```
+
+---
 
 ## Database Seeding
 
@@ -324,6 +386,13 @@ npm run kafka:topics      # create Kafka topics on Aiven
 - **Kafka for payment events** — booking creation and payment outcome are decoupled; the billing service is the sole consumer and producer for financial events.
 - **RAG pipeline** — each `/chat` request embeds the user query and retrieves the most semantically similar deals from MongoDB before calling Gemini. Document embeddings are cached in Redis to avoid redundant API calls on repeated queries.
 - **Multi-signal ranking** — retrieved candidates are re-ranked by a weighted linear model (relevance + price fit + availability + category preference) before being injected into the LLM prompt, giving Gemini the highest-quality context.
+
+---
+
+## Documentation
+
+- **Architecture deep-dive** — [`docs/architecture.md`](docs/architecture.md) covers the full service map, booking and AI chat data flows, database schemas, Redis key patterns, Kafka topics, API Gateway routing, and AWS deployment layout.
+- **Performance results** — [`jmeter/PERFORMANCE_TEST_RESULTS.md`](jmeter/PERFORMANCE_TEST_RESULTS.md)
 
 ---
 
