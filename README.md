@@ -15,13 +15,13 @@ This project replicates the core experience of Kayak — users can search and bo
 
 ```
                         ┌─────────────────────┐
-                        │   React Frontend     │
-                        │   (Vite + Redux)     │
+                        │   React Frontend    │
+                        │   (Vite + Redux)    │
                         └──────────┬──────────┘
                                    │ HTTP
                         ┌──────────▼──────────┐
-                        │    API Gateway       │
-                        │    (Port 5000)       │
+                        │    API Gateway      │
+                        │    (Port 5000)      │
                         └──┬───┬───┬───┬───┬──┘
                            │   │   │   │   │
               ┌────────────┘   │   │   │   └────────────┐
