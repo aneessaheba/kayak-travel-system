@@ -17,6 +17,8 @@ from .database import get_db
 from .ingest import ingestion_loop
 from .models import Deal, Bundle
 from .tools import search_tavily, fetch_weather
+from .rag import retrieve_relevant_inventory, format_rag_context
+from .ranking import rank_candidates
 
 load_dotenv()
 
@@ -33,6 +35,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Shared async Redis client — initialised at startup if REDIS_URL is set
+_redis_client = None
 
 
 class BundleRequest(BaseModel):
@@ -55,6 +60,18 @@ stop_event: asyncio.Event = asyncio.Event()
 
 @app.on_event("startup")
 async def on_startup():
+  global _redis_client
+  # Initialise async Redis client for embedding cache
+  if settings.redis_url:
+    try:
+      import redis.asyncio as aioredis
+      _redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+      await _redis_client.ping()
+      logger.info("Redis connected for RAG embedding cache")
+    except Exception as exc:
+      logger.warning("Redis unavailable — RAG embeddings will not be cached: %s", exc)
+      _redis_client = None
+
   if settings.ingest_csv_path:
     asyncio.create_task(ingestion_loop(stop_event))
   logger.info("Service started with Mongo %s/%s", settings.mongodb_uri, settings.mongodb_db)
@@ -63,6 +80,8 @@ async def on_startup():
 @app.on_event("shutdown")
 async def on_shutdown():
   stop_event.set()
+  if _redis_client:
+    await _redis_client.aclose()
 
 
 @app.get("/health")
@@ -71,6 +90,7 @@ async def health_check():
     "status": "ok",
     "service": "ai-agent",
     "environment": settings.environment,
+    "rag_enabled": settings.rag_enabled,
   }
 
 
@@ -121,6 +141,8 @@ async def root():
 
 class ChatRequest(BaseModel):
   message: str
+  budget: Optional[float] = None
+  preferred_kind: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -131,21 +153,20 @@ class ChatResponse(BaseModel):
 async def chat_endpoint(body: ChatRequest):
   weather_snippet = None
   tavily_snippet = None
+  rag_context = ""
 
-  # Lightweight heuristics to call tools
   lower_msg = body.message.lower()
+
+  # ── Tool activation heuristics ─────────────────────────────────────────────
 
   def extract_location_for_weather(text: str) -> str:
     match = re.search(r"(?:weather|forecast|temperature|temp)\s*(?:in|for)?\s*([a-zA-Z\s,]+)", text, re.IGNORECASE)
     if match and match.group(1).strip():
       candidate = match.group(1)
-    # fallback: try after "in"
     elif (m2 := re.search(r"\bin\s+([a-zA-Z\s,]+)", text, re.IGNORECASE)) and m2.group(1).strip():
       candidate = m2.group(1)
     else:
       candidate = text
-
-    # Strip punctuation/numerics and drop trailing time qualifiers like "tomorrow"
     cleaned = re.sub(r"[^a-zA-Z\s,]", " ", candidate)
     for stop in ["tomorrow", "today", "tonight", "now", "this week", "next week", "forecast"]:
       parts = cleaned.lower().split(stop)
@@ -157,12 +178,36 @@ async def chat_endpoint(body: ChatRequest):
   if any(word in lower_msg for word in ["weather", "temperature", "temp", "forecast", "rain", "snow", "sunny"]):
     location = extract_location_for_weather(body.message)
     weather_snippet = await fetch_weather(location)
+
   if any(word in lower_msg for word in ["hotel", "flight", "deal", "trip", "package", "stay", "book", "booking"]):
     tavily_snippet = await search_tavily(body.message)
 
-  # If no API key, fall back to echo with tool snippets
+  # ── RAG retrieval over live inventory ──────────────────────────────────────
+  # Runs for any travel-related query when RAG is enabled and Gemini key is set.
+  if settings.rag_enabled and settings.gemini_api_key:
+    try:
+      candidates = await retrieve_relevant_inventory(
+        query=body.message,
+        api_key=settings.gemini_api_key,
+        redis_client=_redis_client,
+        top_k=settings.rag_top_k,
+      )
+      if candidates:
+        # Re-rank candidates with multi-signal scoring
+        ranked = rank_candidates(
+          candidates,
+          budget=body.budget,
+          preferred_kind=body.preferred_kind,
+        )
+        rag_context = format_rag_context(ranked)
+    except Exception as exc:
+      logger.warning("RAG retrieval failed (non-fatal): %s", exc)
+
+  # ── Fallback when no Gemini key ────────────────────────────────────────────
   if not settings.gemini_api_key:
     combined = []
+    if rag_context:
+      combined.append(rag_context)
     if weather_snippet:
       combined.append(weather_snippet)
     if tavily_snippet:
@@ -170,32 +215,39 @@ async def chat_endpoint(body: ChatRequest):
     combined.append(f"Thanks! I received: {body.message}")
     return ChatResponse(reply="\n".join(combined))
 
+  # ── LLM inference with full context ───────────────────────────────────────
   llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=settings.gemini_api_key,
     temperature=0.4,
   )
-  prompt = (
+
+  system_prompt = (
     "You are a concise travel concierge. "
-    "Use any provided context (search results or weather) if present. "
+    "Use any provided context — inventory, search results, or weather — if present. "
     "Respond with one or two sentences that acknowledge the request, cite facts, and keep it actionable."
   )
+
   context_parts = []
+  if rag_context:
+    context_parts.append(rag_context)
   if tavily_snippet:
-    context_parts.append(f"Search results:\n{tavily_snippet}")
+    context_parts.append(f"Web search results:\n{tavily_snippet}")
   if weather_snippet:
     context_parts.append(f"Weather info:\n{weather_snippet}")
-  context = "\n".join(context_parts)
+
   try:
-    messages = [HumanMessage(content=prompt)]
-    if context:
-      messages.append(HumanMessage(content=context))
+    messages = [HumanMessage(content=system_prompt)]
+    if context_parts:
+      messages.append(HumanMessage(content="\n\n".join(context_parts)))
     messages.append(HumanMessage(content=body.message))
     msg = llm.invoke(messages)
     reply = msg.content if hasattr(msg, "content") else str(msg)
   except Exception as exc:
     logger.error("Gemini call failed: %s", exc)
     fallback_bits = []
+    if rag_context:
+      fallback_bits.append(rag_context)
     if tavily_snippet:
       fallback_bits.append(tavily_snippet)
     if weather_snippet:
@@ -203,6 +255,7 @@ async def chat_endpoint(body: ChatRequest):
     fallback_bits.append(f"Thanks! I received: {body.message}")
     fallback_bits.append("AI model is temporarily unavailable; returned cached/search context only.")
     reply = "\n".join(fallback_bits)
+
   return ChatResponse(reply=reply)
 
 
